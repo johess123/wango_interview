@@ -107,8 +107,14 @@ async def update_image(image_id: int = Path(...,title="照片id",description="�
         - **text**: 辨識文字
         - **user_id**: 擁有者 id
     """
-    # 確認 id 所有者與 token
+    # 確認照片存在
     original_image = ImageModel.get_image_by_id(image_id)
+    if len(original_image) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+            detail="Can not find this ID's image",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # 確認 id 所有者與 token
     user_id = original_image[0]["user_id"]
     if user_id != token_data["payload"]["user_id"]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
@@ -155,8 +161,14 @@ def delete_image(image_id: int = Path(...,title="照片id",description="照片�
     - 回傳資料
         - **status**: 刪除結果
     """
-    # 確認 id 所有者與 token
+    # 確認照片存在
     original_image = ImageModel.get_image_by_id(image_id)
+    if len(original_image) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+            detail="Can not find this ID's image",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # 確認 id 所有者與 token
     user_id = original_image[0]["user_id"]
     if user_id != token_data["payload"]["user_id"]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,

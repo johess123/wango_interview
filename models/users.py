@@ -17,7 +17,7 @@ def get_user_by_name(name: str):
     return cur.fetchall()
 
 def get_user_data(name: str):
-    sql = "select user.id,user.name, count(image.id) as image_count from user,image where user.name=%s and image.user_id=user.id group by user.id;"
+    sql = "select user.id,user.name, count(image.id) as image_count from user left join image on image.user_id=user.id where user.name=%s group by user.id;"
     cur.execute(sql,(name,))
     return cur.fetchall()
 
