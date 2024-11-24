@@ -6,10 +6,23 @@ from jose.exceptions import ExpiredSignatureError
 from schemas.auth import oauth2_token_scheme, Token
 from typing import Optional
 
-SECRET_KEY = "kenny"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1
-REFRESH_TOKEN_EXPIRE_MINUTES = 5
+from dotenv import load_dotenv
+import os
+from pathlib import Path
+
+# 載入 .env
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / "setting" / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
+
+# SECRET_KEY = "kenny"
+# ALGORITHM = "HS256"
+# ACCESS_TOKEN_EXPIRE_MINUTES = 1
+# REFRESH_TOKEN_EXPIRE_MINUTES = 5
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+REFRESH_TOKEN_EXPIRE_MINUTES = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES"))
 
 # create access token
 async def create_access_token(data: dict):

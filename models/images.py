@@ -25,6 +25,7 @@ def upload_image(file_name: str, file_path: str, text: str, user_id: int):
     sql = "insert into image (file_name, file_path, text, user_id) values (%s,%s,%s,%s);"
     cur.execute(sql,(file_name, file_path, text, user_id))
     conn.commit()
+    return cur.lastrowid
 
 def update_image(file_name: str, file_path: str, text: str, image_id: int):
     print(file_name, file_path, text, image_id)

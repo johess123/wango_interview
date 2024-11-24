@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Header, Query
+from fastapi import APIRouter, HTTPException, status, Depends, Header, Query, Path
 import models.users as UserModel # users model
 import models.images as ImageModel # images model
 import models.jwt as JWTModel # jwt model
-from schemas.users import User as UserSchema # users schema
-from schemas.change_password import Password as PasswordSchema # password schema
+from schemas.users import User as UserSchema # user schema
+from schemas.users import UserResponseWrapper as UserResponseWrapperSchema # user response schema
+from schemas.users import ChangePassword as ChangePasswordSchema # password request schema
+from schemas.images import ImageResponseWrapper as ImageResponseWrapperSchema # image response schema
+from schemas.images import ImageListResponse as ImageListResponseSchema # image list response schema
 from auth.passwd import verify_password, get_password_hash # verify, encrypt password
 from schemas.auth import login_form_schema, oauth2_token_scheme , Token # auth schema
 from auth.jwt import create_token_pair, verify_user # jwt
@@ -45,7 +48,7 @@ async def regist_user(user: UserSchema):
         - **username**: 使用者名稱
         - **password**: 密碼
     - 回傳資料
-        
+        - **status**: 執行結果
     """
     record = UserModel.get_user_by_name(user.username)
     if len(record) != 0:
@@ -66,7 +69,7 @@ async def login_user(form_data: login_form_schema):
         - **username**: 使用者名稱
         - **password**: 密碼
     - 回傳資料
-
+        - **token_pair**: access token & refresh token
     """
     # 驗證帳密
     record = authenticate_user(form_data.username, form_data.password)
@@ -82,7 +85,7 @@ async def login_user(form_data: login_form_schema):
 
 # 登出
 @router.post("/logout/{user_id}", summary="登出帳號", response_description="登出結果")
-def logout_user(user_id: int, token_data: dict = Depends(verify_user_dependency)):
+def logout_user(user_id: int = Path(...,title="使用者id",description="使用者的流水編號",), token_data: dict = Depends(verify_user_dependency)):
     """
     登出帳號
     - path
@@ -91,12 +94,13 @@ def logout_user(user_id: int, token_data: dict = Depends(verify_user_dependency)
         - **Authorization**: bearer type access token
         - **refresh-token**: refresh token
     - 回傳資料
+        - **status**: 執行結果
     """
     # 註銷 token
     return {"status": "success"}
 
 # 顯示個人資料
-@router.get("/me", summary="取得個人資料", response_description="個人資料")
+@router.get("/me", summary="取得個人資料", response_description="個人資料", response_model=UserResponseWrapperSchema)
 async def get_user(token_data: dict = Depends(verify_user_dependency)):
     """
     顯示個人資料
@@ -104,19 +108,22 @@ async def get_user(token_data: dict = Depends(verify_user_dependency)):
         - **Authorization**: bearer type access token
         - **refresh-token**: refresh token
     - 回傳資料
+        - **id**: 使用者 id
+        - **name**: 使用者名稱
+        - **image_count**: 照片數
     """
     # 從 token 取得 user name
     user_name = token_data["payload"]["username"]
-    # 回傳 name, 作品數
+    # 回傳 name, 照片數
     user_data = UserModel.get_user_data(user_name)
-    response_data = {"data": user_data}
+    response_data = {"data": user_data[0]}
     if token_data["new_access_token"]:
         response_data["new_access_token"] = token_data["new_access_token"]
     return response_data
 
 # 修改密碼
 @router.put("/users/password", summary="修改密碼", response_description="修改結果")
-def update_password(user: PasswordSchema, token_data: dict = Depends(verify_user_dependency)):
+def update_password(user: ChangePasswordSchema, token_data: dict = Depends(verify_user_dependency)):
     """
     修改密碼
     - header
@@ -126,6 +133,7 @@ def update_password(user: PasswordSchema, token_data: dict = Depends(verify_user
         - **original_password**: 原密碼
         - **new_password**: 新密碼
     - 回傳資料
+        - **status**: 執行結果
     """
     # 從 token 取得 user name
     user_name = token_data["payload"]["username"]
@@ -146,7 +154,7 @@ def update_password(user: PasswordSchema, token_data: dict = Depends(verify_user
 
 # 刪除自己帳號
 @router.delete("/{user_id}", summary="刪除帳號", response_description="刪除結果")
-def delete_user(user_id: int, token_data: dict = Depends(verify_user_dependency)):
+def delete_user(user_id: int = Path(...,title="使用者id",description="使用者的流水編號",), token_data: dict = Depends(verify_user_dependency)):
     """
     刪除帳號
     - path
@@ -155,6 +163,7 @@ def delete_user(user_id: int, token_data: dict = Depends(verify_user_dependency)
         - **Authorization**: bearer type access token
         - **refresh-token**: refresh token
     - 回傳資料
+        - **status**: 執行結果
     """
     # 確認 id 所有者與 token
     if user_id != token_data["payload"]["user_id"]:
@@ -169,8 +178,8 @@ def delete_user(user_id: int, token_data: dict = Depends(verify_user_dependency)
     return {"status": "success"}
 
 # 查看使用者的所有照片
-@router.get("/{user_id}/images", summary="取得使用者所有照片", response_description="使用者所有照片資料")
-def get_user_all_image(user_id: int, token_data: dict = Depends(verify_user_dependency), limit: int = Query(10, ge=1, le=50), offset: int = Query(0, ge=0)):
+@router.get("/{user_id}/images", summary="取得使用者所有照片", response_description="使用者所有照片資料", response_model=ImageListResponseSchema)
+def get_user_all_image(user_id: int = Path(...,title="使用者id",description="使用者的流水編號",), token_data: dict = Depends(verify_user_dependency), limit: int = Query(10, ge=1, le=50), offset: int = Query(0, ge=0)):
     """
     取得使用者的所有照片
     - path
@@ -182,9 +191,14 @@ def get_user_all_image(user_id: int, token_data: dict = Depends(verify_user_depe
         - **Authorization**: bearer type access token
         - **refresh-token**: refresh token
     - 回傳資料
+        - **id**: 照片 id
+        - **file_name**: 檔案名稱
+        - **file_path**: 檔案路徑
+        - **text**: 辨識文字
+        - **user_id**: 擁有者 id
     """
     # 確認使用者存在
-    user = UserModel.get_image_by_id(user_id)
+    user = UserModel.get_user_by_id(user_id)
     if len(user) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
             detail="Can not find this ID's user",
@@ -198,8 +212,8 @@ def get_user_all_image(user_id: int, token_data: dict = Depends(verify_user_depe
     return response_data
 
 # 查看使用者的某照片
-@router.get("/{user_id}/images/{image_id}", summary="取得使用者該照片", response_description="使用者該照片資料")
-def get_user_image(user_id: int, image_id: int, token_data: dict = Depends(verify_user_dependency)):
+@router.get("/{user_id}/images/{image_id}", summary="取得使用者該照片", response_description="使用者該照片資料", response_model=ImageResponseWrapperSchema)
+def get_user_image(user_id: int = Path(...,title="使用者id",description="使用者的流水編號",), image_id: int = Path(...,title="照片id",description="照片的流水編號",), token_data: dict = Depends(verify_user_dependency)):
     """
     取得使用者該照片
     - path
@@ -209,9 +223,14 @@ def get_user_image(user_id: int, image_id: int, token_data: dict = Depends(verif
         - **Authorization**: bearer type access token
         - **refresh-token**: refresh token
     - 回傳資料
+        - **id**: 照片 id
+        - **file_name**: 檔案名稱
+        - **file_path**: 檔案路徑
+        - **text**: 辨識文字
+        - **user_id**: 擁有者 id
     """
     # 確認使用者存在
-    user = UserModel.get_image_by_id(user_id)
+    user = UserModel.get_user_by_id(user_id)
     if len(user) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
             detail="Can not find this ID's user",
@@ -225,7 +244,7 @@ def get_user_image(user_id: int, image_id: int, token_data: dict = Depends(verif
             detail="Can not find this ID's image of the user",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    response_data = {"data": user_image}
+    response_data = {"data": user_image[0]}
     if token_data["new_access_token"]:
         response_data["new_access_token"] = token_data["new_access_token"]
     return response_data

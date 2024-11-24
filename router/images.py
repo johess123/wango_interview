@@ -2,6 +2,7 @@ from fastapi import APIRouter, Path, HTTPException, status, Depends, Header, Req
 import models.users as UserModel # users model
 import models.images as ImageModel # images model
 from schemas.auth import oauth2_token_scheme , Token # auth schema
+from schemas.images import ImageListResponse as ImageListResponseSchema # image list response schema
 from auth.jwt import create_access_token, verify_user # jwt
 from typing import Optional
 import shutil
@@ -22,7 +23,7 @@ async def verify_user_dependency(access_token: oauth2_token_scheme,refresh_token
     return await verify_user(access_token, refresh_token)
 
 # 查看所有照片
-@router.get("/", summary="取得所有照片", response_description="所有照片資料")
+@router.get("/", summary="取得所有照片", response_description="所有照片資料", response_model=ImageListResponseSchema)
 async def get_all_images(request: Request, response: Response, token_data: dict = Depends(verify_user_dependency),limit: int = Query(10, ge=1, le=50), offset: int = Query(0, ge=0)):
     """
     取得所有照片
@@ -46,7 +47,7 @@ async def get_all_images(request: Request, response: Response, token_data: dict 
     return response_data
 
 # 上傳照片
-@router.post("/", summary="上傳照片", response_description="照片資料", status_code=status.HTTP_201_CREATED)
+@router.post("/", summary="上傳照片", response_description="照片資料", status_code=status.HTTP_201_CREATED, response_model=ImageListResponseSchema)
 async def upload_image(file: UploadFile = File(...), token_data: dict = Depends(verify_user_dependency)):
     """
     上傳照片
@@ -59,7 +60,7 @@ async def upload_image(file: UploadFile = File(...), token_data: dict = Depends(
         - **file_name**: 檔案名稱
         - **file_path**: 檔案路徑
         - **text**: 辨識文字
-        - **status**: 上傳結果
+        - **user_id**: 擁有者 id
     """
     # 驗證檔案類型
     if file.content_type not in ["image/jpeg", "image/png"]:
@@ -79,17 +80,16 @@ async def upload_image(file: UploadFile = File(...), token_data: dict = Depends(
     for (bbox, text, prob) in result:
         all_text = all_text + text + " "
     # 從 token 取得 user name, user_id
-    user_name = token_data["payload"]["username"]
     user_id = token_data["payload"]["user_id"]
     # 存 db
-    ImageModel.upload_image(file_name, file_path, all_text, user_id)
-    response_data = {"file_name": file.filename, "file_path": file_path, "text": all_text, "status":"success"}
+    image_id = ImageModel.upload_image(file_name, file_path, all_text, user_id)
+    response_data = {"data":[{"id": image_id, "file_name": file.filename, "file_path": file_path, "text": all_text, "user_id": user_id}]}
     if token_data["new_access_token"]:
         response_data["new_access_token"] = token_data["new_access_token"]
     return response_data
 
 # 更新照片
-@router.put("/{image_id}", summary="更新照片", response_description="照片資料")
+@router.put("/{image_id}", summary="更新照片", response_description="照片資料", response_model=ImageListResponseSchema)
 async def update_image(image_id: int = Path(...,title="照片id",description="照片的流水編號",), file: UploadFile = File(...), token_data: dict = Depends(verify_user_dependency)):
     """
     更新照片
@@ -105,7 +105,7 @@ async def update_image(image_id: int = Path(...,title="照片id",description="�
         - **file_name**: 檔案名稱
         - **file_path**: 檔案路徑
         - **text**: 辨識文字
-        - **status**: 更新結果
+        - **user_id**: 擁有者 id
     """
     # 確認 id 所有者與 token
     original_image = ImageModel.get_image_by_id(image_id)
@@ -137,7 +137,7 @@ async def update_image(image_id: int = Path(...,title="照片id",description="�
         all_text = all_text + text + " "
     # 存 db
     ImageModel.update_image(file_name, file_path, all_text, image_id)
-    response_data = {"id": image_id, "file_name": file.filename, "file_path": file_path, "text": all_text, "status":"success"}
+    response_data = {"data":[{"id": image_id, "file_name": file.filename, "file_path": file_path, "text": all_text, "user_id": user_id}]}
     if token_data["new_access_token"]:
         response_data["new_access_token"] = token_data["new_access_token"]
     return response_data
