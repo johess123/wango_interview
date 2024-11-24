@@ -1,4 +1,4 @@
-# 驗證密碼、取得加密後密碼
+# 驗證密碼、取得 hash 後密碼
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
