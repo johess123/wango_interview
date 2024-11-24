@@ -144,7 +144,7 @@ async def update_image(image_id: int = Path(...,title="照片id",description="�
 
 # 刪除照片
 @router.delete("/{image_id}", summary="刪除照片", response_description="執行結果")
-def delete_image(id: int = Path(...,title="照片id",description="照片的流水編號",), token_data: dict = Depends(verify_user_dependency)):
+def delete_image(image_id: int = Path(...,title="照片id",description="照片的流水編號",), token_data: dict = Depends(verify_user_dependency)):
     """
     刪除照片
     - path
