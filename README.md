@@ -6,4 +6,4 @@
   <img src="https://hackmd.io/_uploads/HkHhvHb7Jg.png" width="600px"/>
 
 ## ER Model
-  <img src="https://hackmd.io/_uploads/rkkxEhe71x.png" width="600px"/>
+  <img src="https://hackmd.io/_uploads/S1CBFB-Xkl.png" width="600px"/>
